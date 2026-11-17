@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Turnaround Ops - Mobile</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Space Grotesk, Hanken Grotesk, JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "primary": "#001632",
+            "on-primary": "#ffffff",
+            "primary-container": "#142b4a",
+            "secondary": "#005faf",
+            "secondary-container": "#5da2fd",
+            "tertiary": "#001b0d",
+            "surface": "#f9f9ff",
+            "surface-container": "#e8edff",
+            "surface-container-low": "#f1f3ff",
+            "surface-container-high": "#e0e8ff",
+            "error": "#ba1a1a",
+            "on-surface": "#041b3c",
+            "on-surface-variant": "#44474e",
+            "outline": "#74777e",
+            "outline-variant": "#c4c6ce",
+            "success": "#16A36A",
+            "warning": "#B45309",
+            "info": "#005faf"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.5rem",
+            "full": "9999px"
+          },
+          "fontFamily": {
+            "body": ["Hanken Grotesk"],
+            "headline": ["Space Grotesk"],
+            "mono": ["JetBrains Mono"]
+          },
+          "fontSize": {
+            "xs": ["0.75rem", {"lineHeight": "1rem"}],
+            "sm": ["0.875rem", {"lineHeight": "1.25rem"}],
+            "base": ["1rem", {"lineHeight": "1.5rem"}],
+            "lg": ["1.125rem", {"lineHeight": "1.75rem"}],
+            "xl": ["1.25rem", {"lineHeight": "1.75rem"}],
+            "2xl": ["1.5rem", {"lineHeight": "2rem"}]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .tap-active:active {
+      transform: scale(0.97);
+    }
+    body {
+      min-height: max(884px, 100dvh);
+    }
+    .status-green {
+      background-color: #E8F8F0;
+      border-left: 3px solid #16A36A;
+      color: #16A36A;
+    }
+    .status-orange {
+      background-color: #FEF3C7;
+      border-left: 3px solid #B45309;
+      color: #B45309;
+    }
+    .status-blue {
+      background-color: #EFF6FF;
+      border-left: 3px solid #005faf;
+      color: #005faf;
+    }
+    .status-neutral {
+      background-color: #F5F5F5;
+      border-left: 3px solid #E5E7EB;
+      color: #6B7280;
+    }
+      .status-red {
+      background-color: #FEE2E2;
+      border-left: 3px solid #DC4545;
+      color: #DC4545;
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface antialiased selection:bg-secondary selection:text-on-primary min-h-screen">
+
+<!-- TOP BAR -->
+<div class="sticky top-0 z-50 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+<div class="flex items-center justify-between px-4 py-3 max-w-3xl mx-auto">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl">flight_takeoff</span>
+<div>
+<div class="font-semibold text-primary text-lg">Turnaround Ops</div>
+<div class="text-xs text-gray-500 flex items-center gap-1">
+<span id="netd" class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+<span id="net">LIVE RAMP</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button data-a="bell" class="p-2 rounded-full hover:bg-gray-100 relative">
+<span class="material-symbols-outlined text-xl">notifications</span>
+<span id="bdot" class="hidden absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500"></span>
+</button>
+</div>
+</div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div id="main" class="px-4 py-4 pb-28 space-y-4 max-w-3xl mx-auto"></div>
+
+<div id="modal"></div>
+<div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-[70] hidden bg-primary text-white text-sm px-4 py-2 rounded-full shadow-lg max-w-[90vw] text-center"></div>
+
+<!-- BOTTOM NAVIGATION -->
+<div class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-2 z-50">
+<div id="nav" class="flex justify-around items-center max-w-3xl mx-auto"></div>
+</div>
+
+<script>
+/* ================= CONFIG / HELPERS ================= */
+const KEY='att_v1', PIN='1234', SYNC_URL=''; // PIN = supervisor PIN for timestamp corrections. SYNC_URL = your server endpoint (optional)
+const $=s=>document.querySelector(s), pad=n=>String(n).padStart(2,'0');
+const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hm=ms=>{const d=new Date(ms);return pad(d.getHours())+':'+pad(d.getMinutes())};
+const hmsT=ms=>hm(ms)+':'+pad(new Date(ms).getSeconds());
+const clock=ms=>{const t=Math.floor(Math.max(0,ms)/1000);return pad(Math.floor(t/3600))+':'+pad(Math.floor(t%3600/60))+':'+pad(t%60)};
+const dms=ms=>{const t=Math.floor(Math.max(0,ms)/1000),h=Math.floor(t/3600),m=Math.floor(t%3600/60);return h?`${h}h ${m}m`:`${m}m ${pad(t%60)}s`};
+const dn=ms=>{const m=Math.round(Math.max(0,ms)/6e4);return m>=60?`${Math.floor(m/60)}h ${m%60}m`:`${m} min`};
+const ds=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const toMs=(d,t)=>new Date(d+'T'+t+':00').getTime();
+const etdMs=f=>{let a=toMs(f.date,f.sta),b=toMs(f.date,f.std);return b<a?b+864e5:b};
+const fdate=d=>new Date(d+'T00:00:00').toLocaleDateString([], {day:'2-digit',month:'short',year:'numeric'});
+
+/* ================= STATE (localStorage, offline-first) ================= */
+function seed(){
+  const n=Date.now(), r=m=>{const d=new Date(n+m*6e4);d.setSeconds(0,0);return d};
+  const f=(i,no,reg,ty,o,de,m,st,rm)=>({id:'f'+i,no,reg,type:ty,origin:o,dest:de,date:ds(r(m)),sta:hm(r(m)),std:hm(r(m+65)),stand:st,remarks:rm});
+  return {flights:[f(1,'EK658','A6-EEO','B777-300ER','DXB','DXB',20,'C14','Sample flight'),f(2,'QR672','A7-BAC','A320','DOH','DOH',130,'B07',''),f(3,'TK731','TC-JNA','A321','IST','IST',240,'A03','')],sessions:[],alerts:[],fl:{}};
+}
+function load(){try{const j=JSON.parse(localStorage.getItem(KEY));if(j&&j.flights)return j}catch(e){}return seed()}
+let S=load(), view='dashboard', cur=null, tf='all', rep=null, pend=null, lastTap=0;
+const Q={sch:{s:'',d:'',f:''},cmp:{s:'',d:'',f:''}};
+function save(){S.dirty=true;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Storage full – export your records')}sync()}
+async function sync(){ // real-time sync hook: pushes data to SYNC_URL whenever online
+  if(!navigator.onLine)return; try{if(SYNC_URL){await fetch(SYNC_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(S)})}S.dirty=false;S.synced=Date.now();localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+}
+const fOf=id=>S.flights.find(x=>x.id===id), sOf=id=>S.sessions.find(x=>x.id===id), sessOf=fid=>S.sessions.find(x=>x.fid===fid);
+const getP=(o,p)=>p.split('.').reduce((a,k)=>a&&a[k],o);
+function setP(o,p,v){const a=p.split('.');const l=a.pop();let c=o;a.forEach(k=>{c=c[k]=c[k]||{}});c[l]=v}
+
+/* ================= TASK MODEL ================= */
+const M=[
+ {k:'chocks',n:'02',t:'Chocks On / Off',d:'Allocated: 30 min • Wheel chocks',a:'START',b:'END',lim:30,ia:'play_arrow',ib:'stop'},
+ {k:'door',n:'03',t:'Aircraft Doors',d:'Main boarding & bridge link',a:'OPEN',b:'CLOSE',ia:'lock_open',ib:'lock'},
+ {k:'gpu',n:'04',t:'GPU Connection',d:'No allocated time limit',a:'START',b:'STOP',ia:'bolt',ib:'power_off',red:1},
+ {k:'bagun',n:'05',t:'Baggage Unload',d:'Aircraft hold offload',a:'START',b:'FINISH',ia:'play_arrow',ib:'check'},
+ {k:'disem',n:'06',t:'Pax Disembark',d:'Passenger deplaning',a:'START',b:'FINISH',ia:'play_arrow',ib:'check'},
+ {k:'bagload',n:'07',t:'Baggage Load',d:'Outbound baggage loading',a:'START',b:'FINISH',ia:'play_arrow',ib:'check'},
+ {k:'clean',n:'08',t:'Cabin Cleaning',d:'Cabin cleaning & sweep',a:'START',b:'FINISH',ia:'play_arrow',ib:'check'},
+ {k:'embark',n:'09',t:'Pax Embark',d:'Boarding',a:'START',b:'FINISH',ia:'play_arrow',ib:'check'}
+];
+const BD={n:['bg-gray-100 text-gray-600','NOT STARTED'],p:['bg-blue-100 text-blue-700','IN PROGRESS'],c:['bg-green-100 text-green-700','COMPLETED'],x:['bg-red-100 text-red-700','DELAYED']};
+const SC={n:'status-neutral',p:'status-blue',c:'status-green',x:'status-red'};
+const NC={n:'bg-gray-200 text-gray-600',p:'bg-blue-100 text-blue-600',c:'bg-green-100 text-green-600',x:'bg-red-100 text-red-600'};
+const badge=(st,l)=>`<div class="${BD[st][0]} px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap">${l||BD[st][1]}</div>`;
+function tinfo(s,k){
+  const now=Date.now();
+  if(k==='t1'){return {run:!!s.ata&&!s.atd,done:!!s.atd,st:!s.ata?'n':!s.atd?'p':'c'}}
+  if(k==='engine'){const e=s.tasks.engine||{};const done=!!(e.r&&e.s);return {e,done,run:!!(e.r||e.s)&&!done,st:done?'c':(e.r||e.s)?'p':'n'}}
+  const m=M.find(x=>x.k===k),t=s.tasks[k]||{};const dur=t.s?(t.e||now)-t.s:0;
+  let st=!t.s?'n':t.e?'c':'p',delay=0;
+  if(m.lim){delay=Math.max(0,dur-m.lim*6e4);if(delay>0)st='x'}
+  return {t,dur,delay,run:!!t.s&&!t.e,done:!!t.e,st};
+}
+const allK=['t1',...M.map(m=>m.k),'engine'];
+const elapsed=s=>s.ata?(s.atd||Date.now())-s.ata:0;
+const plan=s=>Math.round((s.etd-s.eta)/6e4);
+const totDelay=s=>M.reduce((a,m)=>a+tinfo(s,m.k).delay,0);
+const delayedTasks=s=>M.filter(m=>tinfo(s,m.k).delay>0);
+const doneCount=s=>allK.filter(k=>tinfo(s,k).done).length;
+
+/* ================= UI HELPERS ================= */
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.remove('hidden');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.add('hidden'),2600)}
+function modal(h,wide){$('#modal').innerHTML=`<div data-a="bd" class="fixed inset-0 z-[60] bg-black/50 flex items-end md:items-center justify-center"><div class="bg-white w-full ${wide?'md:max-w-2xl':'md:max-w-lg'} rounded-t-2xl md:rounded-2xl p-4 max-h-[90vh] overflow-y-auto">${h}</div></div>`}
+const closeM=()=>{$('#modal').innerHTML=''};
+function ask(title,msg,ok,fn){pend=fn;modal(`<h3 class="font-semibold text-primary text-lg">${title}</h3><div class="text-sm text-gray-600 mt-2">${msg}</div><div class="grid grid-cols-2 gap-3 mt-4"><button data-a="close" class="min-h-[48px] border-2 border-gray-300 text-gray-600 font-semibold rounded-lg tap-active">CANCEL</button><button data-a="ok" class="min-h-[48px] bg-blue-600 text-white font-semibold rounded-lg tap-active">${ok}</button></div>`)}
+const inp='w-full rounded-lg border-gray-300 text-sm';
+function native(m){try{if('Notification' in window&&Notification.permission==='granted')new Notification('Turnaround Ops',{body:m})}catch(e){}}
+function alertOp(m){S.alerts.unshift({t:Date.now(),m});S.alerts.length=Math.min(S.alerts.length,50);S.unread=1;save();toast(m);native(m);$('#bdot').classList.remove('hidden')}
+
+/* ================= VIEWS ================= */
+const NAV=[['dashboard','dashboard','Dashboard'],['schedule','calendar_today','Schedule'],['upcoming','schedule','Upcoming'],['active','flight_land','Active'],['completed','check_circle','Completed']];
+function renderNav(){$('#nav').innerHTML=NAV.map(n=>`<a data-a="nav" data-v="${n[0]}" class="cursor-pointer flex flex-col items-center justify-center ${view===n[0]?'bg-blue-600 text-white':'text-gray-500 hover:bg-gray-100'} px-2 py-1 text-xs gap-1 rounded-lg"><span class="material-symbols-outlined text-xl">${n[1]}</span>${n[2]}</a>`).join('')}
+const H=t=>`<div class="flex items-center justify-between"><h2 class="font-headline font-semibold text-primary text-xl">${t}</h2></div>`;
+const empty=(i,t)=>`<div class="bg-white rounded-xl p-8 shadow-sm border border-gray-200 text-center text-gray-500"><span class="material-symbols-outlined text-4xl text-gray-300">${i}</span><div class="mt-2 text-sm">${t}</div></div>`;
+const byTime=(a,b)=>toMs(a.date,a.sta)-toMs(b.date,b.sta);
+const BTN='bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-sm tap-active transition-all flex items-center justify-center gap-2 min-h-[48px]';
+
+function vDash(){
+  const today=ds(new Date()),act=S.sessions.filter(x=>x.status==='active'),cmp=S.sessions.filter(x=>x.status==='completed');
+  const up=S.flights.filter(f=>!sessOf(f.id)).sort(byTime);
+  const dl=cmp.filter(s=>ds(new Date(s.completedAt))===today).reduce((a,s)=>a+delayedTasks(s).length,0)+act.reduce((a,s)=>a+delayedTasks(s).length,0);
+  const st=(l,v,i,c)=>`<div class="bg-white rounded-xl p-4 shadow-sm border border-gray-200"><div class="flex items-center justify-between"><span class="text-xs text-gray-500">${l}</span><span class="material-symbols-outlined ${c}">${i}</span></div><div class="font-headline font-bold text-2xl text-primary mt-1">${v}</div></div>`;
+  return H('Dashboard')+`<div class="grid grid-cols-2 md:grid-cols-4 gap-3">${st('TODAY\'S FLIGHTS',S.flights.filter(f=>f.date===today).length,'calendar_today','text-blue-500')+st('UPCOMING',up.length,'schedule','text-gray-400')+st('ACTIVE',act.length,'flight_land','text-blue-600')+st('DELAYED TASKS',dl,'warning',dl?'text-red-500':'text-green-500')}</div>`
+  +`<div class="font-semibold text-primary">Active Turnarounds</div>`+(act.length?`<div class="md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">${act.map(activeCard).join('')}</div>`:empty('flight_land','No active turnarounds'))
+  +`<div class="font-semibold text-primary">Next Arrivals</div>`+(up.length?`<div class="md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">${up.slice(0,4).map(upCard).join('')}</div>`:empty('schedule','No upcoming flights'))
+  +`<div class="text-xs text-gray-400 text-center">${navigator.onLine?'Online':'Offline – saving locally'}${S.synced?' • last sync '+hm(S.synced):''}</div>`;
+}
+function schList(){
+  const q=Q.sch,k=q.s.toLowerCase();
+  const l=S.flights.filter(f=>(!q.d||f.date===q.d)&&(!q.f||f.no===q.f)&&(!k||[f.no,f.reg,f.type,f.origin,f.dest,f.remarks,f.stand].join(' ').toLowerCase().includes(k))).sort(byTime);
+  return l.length?`<div class="md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">${l.map(schCard).join('')}</div>`:empty('flight','No flights found');
+}
+function filters(o){const nos=[...new Set(S.flights.map(f=>f.no))].sort();return `<div class="space-y-2"><input data-in="${o}" data-f="s" class="${inp}" placeholder="Search flight, registration, destination..." value="${esc(Q[o].s)}"/><div class="grid grid-cols-2 gap-2"><input data-in="${o}" data-f="d" type="date" class="${inp}" value="${Q[o].d}"/><select data-in="${o}" data-f="f" class="${inp}"><option value="">All flight numbers</option>${nos.map(n=>`<option ${Q[o].f===n?'selected':''}>${esc(n)}</option>`).join('')}</select></div></div>`}
+function vSch(){return `<div class="flex items-center justify-between"><h2 class="font-headline font-semibold text-primary text-xl">Flight Schedule</h2><button data-a="fform" class="px-4 py-2 ${BTN} min-h-0"><span class="material-symbols-outlined">add</span>ADD FLIGHT</button></div>`+filters('sch')+`<div id="list">${schList()}</div>`}
+function schCard(f){
+  const x=sessOf(f.id),st=!x?'n':x.status==='active'?'p':'c';
+  const btn=!x?`<button data-a="begin" data-f="${f.id}" class="flex-1 ${BTN}"><span class="material-symbols-outlined">play_arrow</span>START TURNAROUND</button>`:x.status==='active'?`<button data-a="open" data-s="${x.id}" class="flex-1 ${BTN}">OPEN TURNAROUND</button>`:`<button data-a="report" data-s="${x.id}" class="flex-1 ${BTN}">VIEW REPORT</button>`;
+  return `<div data-a="detail" data-f="${f.id}" class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 ${SC[st]} cursor-pointer">
+<div class="flex items-start justify-between"><div><div class="font-bold text-primary text-lg">${esc(f.no)}</div><div class="text-xs text-gray-500">${esc(f.reg)} • ${esc(f.type)}</div></div>${badge(st,!x?'SCHEDULED':x.status==='active'?'ACTIVE':'COMPLETED')}</div>
+<div class="grid grid-cols-3 gap-2 text-center mt-3 text-xs"><div class="bg-gray-50 rounded-lg p-2 border border-gray-200"><div class="text-gray-500">STA</div><div class="font-bold text-primary">${f.sta}</div></div><div class="bg-gray-50 rounded-lg p-2 border border-gray-200"><div class="text-gray-500">STD</div><div class="font-bold text-primary">${f.std}</div></div><div class="bg-gray-50 rounded-lg p-2 border border-gray-200"><div class="text-gray-500">DATE</div><div class="font-bold text-primary">${fdate(f.date).slice(0,6)}</div></div></div>
+<div class="text-xs text-gray-500 mt-2">${esc(f.origin)} → ${esc(f.dest)} • Stand ${esc(f.stand||'-')}${f.remarks?' • '+esc(f.remarks):''}</div>
+<div class="flex gap-2 mt-3">${btn}<button data-a="fform" data-f="${f.id}" class="w-12 min-h-[48px] border-2 border-blue-500 text-blue-500 rounded-lg tap-active flex items-center justify-center"><span class="material-symbols-outlined">edit</span></button><button data-a="delf" data-f="${f.id}" class="w-12 min-h-[48px] border-2 border-red-400 text-red-500 rounded-lg tap-active flex items-center justify-center"><span class="material-symbols-outlined">delete</span></button></div></div>`;
+}
+function upCard(f){
+  return `<div class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 status-neutral">
+<div class="flex items-start justify-between"><div class="flex items-center gap-2"><div class="w-6 h-6 bg-gray-200 rounded-md flex items-center justify-center text-gray-600 material-symbols-outlined text-base">flight</div><div><h3 class="font-semibold text-primary">${esc(f.no)} • ${esc(f.reg)}</h3><p class="text-xs text-gray-500">${esc(f.type)} • DEST ${esc(f.dest)}</p></div></div><div class="text-right text-xs"><div class="text-gray-500">STAND</div><div class="font-bold text-primary">${esc(f.stand||'-')}</div></div></div>
+<div class="grid grid-cols-3 gap-2 text-center mt-3 text-xs"><div class="bg-gray-50 rounded-lg p-2 border border-gray-200"><div class="text-gray-500">STA</div><div class="font-bold text-primary">${f.sta}</div></div><div class="bg-gray-50 rounded-lg p-2 border border-gray-200"><div class="text-gray-500">STD</div><div class="font-bold text-primary">${f.std}</div></div><div class="bg-gray-50 rounded-lg p-2 border border-gray-200"><div class="text-gray-500">DATE</div><div class="font-bold text-primary">${fdate(f.date).slice(0,6)}</div></div></div>
+<div class="mt-3 flex items-center justify-between gap-2"><div class="font-mono text-xs font-bold" data-lv="cd:${f.id}"></div><button data-a="begin" data-f="${f.id}" class="px-4 ${BTN}"><span class="material-symbols-outlined">play_arrow</span>START TURNAROUND</button></div></div>`;
+}
+function vUp(){const l=S.flights.filter(f=>!sessOf(f.id)).sort(byTime);return H('Upcoming Flights')+(l.length?`<div class="md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">${l.map(upCard).join('')}</div>`:empty('schedule','No upcoming flights. Add flights in Schedule.'))}
+function activeCard(s){
+  const f=fOf(s.fid),i=tinfo(s,'t1'),dl=delayedTasks(s).length;
+  return `<div class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 ${dl?SC.x:SC[i.st==='n'?'p':'p']}">
+<div class="flex items-start justify-between"><div><h3 class="font-semibold text-primary text-lg">${esc(f.no)}</h3><p class="text-xs text-gray-500">${esc(f.reg)} • ${esc(f.type)} • DEST ${esc(f.dest)}</p></div>${badge(dl?'x':'p',dl?'DELAYED':i.st==='n'?'AWAITING LANDING':'IN PROGRESS')}</div>
+<div class="mt-3 bg-gray-50 p-3 rounded-lg border border-gray-200 flex items-center justify-between"><div><div class="text-xs text-gray-500">ELAPSED</div><div class="font-mono font-bold text-blue-600" data-lv="total:${s.id}">00:00:00</div></div><div class="text-right text-xs text-gray-500">${doneCount(s)} of 10 tasks done<div class="w-28 bg-gray-200 h-2 rounded-full overflow-hidden mt-1"><div class="bg-blue-600 h-full" style="width:${doneCount(s)*10}%"></div></div></div></div>
+<button data-a="open" data-s="${s.id}" class="mt-3 w-full ${BTN}">OPEN TURNAROUND</button></div>`;
+}
+function vAct(){
+  if(cur&&sOf(cur))return vMon(sOf(cur));
+  const l=S.sessions.filter(x=>x.status==='active');
+  return H('Active Turnarounds')+(l.length?`<div class="md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">${l.map(activeCard).join('')}</div>`:empty('flight_land','No active turnarounds. Start one from Upcoming or Schedule.'));
+}
+const ed=(s,p,l,v,c)=>`<span data-a="edt" data-s="${s.id}" data-p="${p}" data-l="${l}" class="cursor-pointer underline decoration-dotted ${c||''}">${v}</span>`;
+function vMon(s){
+  const f=fOf(s.fid),done=doneCount(s),cnt={all:10,active:allK.filter(k=>tinfo(s,k).run).length,completed:allK.filter(k=>tinfo(s,k).done).length};
+  const tab=(k,l)=>`<div data-a="filt" data-v="${k}" class="cursor-pointer px-4 py-2 ${tf===k?'bg-primary text-white':'bg-gray-100 text-gray-700'} rounded-full text-sm font-medium whitespace-nowrap">${l} (${cnt[k]})</div>`;
+  const show=k=>{const i=tinfo(s,k);return tf==='all'||(tf==='active'&&i.run)||(tf==='completed'&&i.done)};
+  const cards=[];
+  if(show('t1'))cards.push(task1(s));
+  M.forEach(m=>{if(show(m.k))cards.push(taskCard(s,m))});
+  if(show('engine'))cards.push(engCard(s));
+  return `<button data-a="nav" data-v="active" class="flex items-center gap-1 text-sm text-blue-600 font-semibold"><span class="material-symbols-outlined">arrow_back</span>All active</button>
+<div class="bg-primary text-on-primary rounded-2xl p-4 shadow-lg mb-4">
+<div class="flex items-center justify-between mb-3"><div class="flex items-center gap-3"><div class="bg-white/20 px-3 py-2 rounded-xl font-bold text-xl">${esc(f.no)}</div><div><div class="font-semibold text-lg">${esc(f.reg)} • ${esc(f.type)}</div><div class="text-sm opacity-80">DEST: ${esc(f.dest)} • UTC+5 (MVR)</div></div></div><div class="text-right"><div class="text-sm opacity-80">ASSIGNED STAND</div><div class="font-bold">${esc(f.stand||'-')}</div></div></div>
+<div class="grid grid-cols-3 gap-3 text-center"><div class="bg-white/20 p-3 rounded-xl"><div class="text-xs opacity-80">ETA</div><div class="font-bold text-lg">${ed(s,'eta','ETA',hm(s.eta))}</div></div><div class="bg-white/30 p-3 rounded-xl border border-white/40"><div class="text-xs opacity-80 text-secondary">ATA (ACTUAL)</div><div class="font-bold text-lg">${s.ata?ed(s,'ata','ATA',hm(s.ata)):'--:--'}</div></div><div class="bg-white/20 p-3 rounded-xl"><div class="text-xs opacity-80">ETD</div><div class="font-bold text-lg">${ed(s,'etd','ETD',hm(s.etd))}</div></div></div>
+<div class="mt-4"><div class="flex items-center justify-between mb-2"><div><div class="text-xs opacity-80">TURNAROUND ELAPSED TIME</div><div class="font-mono text-2xl font-bold" data-lv="total:${s.id}">00:00:00</div><div class="text-xs font-semibold flex items-center gap-1" data-lv="hst:${s.id}"></div></div><div class="text-right"><div class="font-bold text-lg">${done*10}%</div><div class="text-xs" data-lv="plan:${s.id}"></div></div></div><div class="w-full bg-white/30 h-2 rounded-full overflow-hidden"><div class="bg-secondary h-full rounded-full" style="width:${done*10}%"></div></div></div></div>
+<div class="flex gap-2 overflow-x-auto pb-2">${tab('all','ALL TASKS')+tab('active','ACTIVE')+tab('completed','COMPLETED')}</div>
+<div class="md:grid md:grid-cols-2 md:gap-x-4 items-start">${cards.join('')||empty('task_alt','No tasks in this filter')}</div>`;
+}
+function task1(s){
+  const i=tinfo(s,'t1'),f=fOf(s.fid);
+  const left=`<div class="bg-gray-50 rounded-lg p-3 border border-gray-200"><div class="flex items-center justify-between"><span class="text-xs text-gray-500">${s.ata?'TOUCHDOWN':'EXPECTED'}</span><span class="material-symbols-outlined ${s.ata?'text-green-500':'text-gray-400'}">${s.ata?'check_circle':'schedule'}</span></div><div class="mt-2"><div class="font-semibold">${s.ata?'LANDED':'ETA'}</div><div class="text-xs text-gray-500">${s.ata?'ATA '+ed(s,'ata','ATA',hmsT(s.ata)):'ETA '+ed(s,'eta','ETA',hm(s.eta))} MVR</div></div></div>`;
+  const right=s.atd?`<div class="bg-gray-50 rounded-lg p-3 border border-gray-200"><div class="flex items-center justify-between"><span class="text-xs text-gray-500">ATD</span><span class="material-symbols-outlined text-green-500">flight_takeoff</span></div><div class="mt-2"><div class="font-semibold">${ed(s,'atd','ATD',hmsT(s.atd))}</div><div class="text-xs text-blue-600 font-semibold">Total TAT ${dn(s.atd-s.ata)}</div></div></div>`
+  :`<button data-a="${s.ata?'takeoff':'landed'}" data-s="${s.id}" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg font-semibold shadow-sm tap-active transition-all flex flex-col justify-between text-left min-h-[88px]"><div class="flex items-center justify-between"><span class="text-xs">${s.ata?'DEPARTURE TRIGGER':'ARRIVAL TRIGGER'}</span><span class="w-2 h-2 rounded-full bg-green-400 animate-ping"></span></div><div class="mt-2 flex items-center justify-between"><span>${s.ata?'TAKE-OFF':'LANDED'}</span><span class="material-symbols-outlined">${s.ata?'flight_takeoff':'flight_land'}</span></div></button>`;
+  return `<div class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 mb-4 ${SC[i.st]}"><div class="flex items-center justify-between mb-3"><div class="flex items-center gap-2"><div class="w-6 h-6 ${NC[i.st]} rounded-md flex items-center justify-center font-bold text-xs">01</div><div><h3 class="font-semibold text-primary">ETA / ATA / Take-off</h3><p class="text-xs text-gray-500">Touch-down & departure</p></div></div>${badge(i.st,i.st==='n'?'NOT STARTED':i.st==='p'?'ACTIVE PHASE':'COMPLETED')}</div><div class="grid grid-cols-2 gap-3">${left}${right}</div></div>`;
+}
+function chkLive(s){
+  const i=tinfo(s,'chocks'),lim=30*6e4,rem=lim-i.dur,col=i.delay>0?'bg-red-500':i.dur>=25*6e4?'bg-yellow-500':'bg-green-500';
+  return `<div class="flex justify-between items-center text-xs mb-1"><span class="text-gray-500">Allocated: <strong>30 min</strong> • Actual: <strong>${dms(i.dur)}</strong></span><span class="${rem<0?'text-red-600':'text-green-600'} font-bold">${rem<0?'Over: '+dms(-rem):'Remaining: '+dms(rem)}</span></div><div class="w-full bg-gray-200 h-2 rounded-full overflow-hidden"><div class="${col} h-full rounded-full" style="width:${Math.min(100,i.dur/lim*100)}%"></div></div>`+(i.t.s?(i.delay>0?`<div class="mt-2 text-xs font-bold text-red-600">DELAYED +${dms(i.delay)} (${Math.ceil(i.delay/6e4)} min)</div>`:i.done?`<div class="mt-2 text-xs font-bold text-green-600">ON TIME</div>`:''):'');
+}
+function taskCard(s,m){
+  const i=tinfo(s,m.k),t=i.t,id=`data-s="${s.id}" data-k="${m.k}"`;
+  const bB=`<button data-a="te" ${id} class="${m.red?'bg-red-500 hover:bg-red-600':'bg-blue-600 hover:bg-blue-700'} text-white font-semibold rounded-lg shadow-sm tap-active transition-all flex items-center justify-center gap-2 min-h-[48px]"><span class="material-symbols-outlined">${m.ib}</span>${m.b}</button>`;
+  const bA=`<button data-a="ts" ${id} class="${BTN} px-6"><span class="material-symbols-outlined">${m.ia}</span>${m.a}</button>`;
+  let body='';
+  if(m.lim)body+=`<div class="mt-3 bg-gray-50 p-3 rounded-lg border border-gray-200" data-lv="chk:${s.id}">${chkLive(s)}</div>`;
+  if(i.run){
+    body+=`<div class="mt-3 bg-gray-50 p-3 rounded-lg border border-gray-200 flex items-center justify-between"><div><div class="text-xs text-gray-500">STARTED AT</div><div class="font-semibold text-primary">${ed(s,`tasks.${m.k}.s`,m.a+' time',hmsT(t.s))}</div></div><div class="text-right"><div class="text-xs text-gray-500">ACTIVE RUNTIME</div><div class="font-mono font-bold text-blue-600" data-lv="rt:${s.id}:${m.k}">00:00:00</div></div></div><div class="mt-3">${bB.replace('class="','class="w-full ')}</div>`;
+  }else if(i.done){
+    body+=`<div class="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-500 space-y-1"><div class="flex justify-between"><span>${m.a==='OPEN'?'Open':'Start'}: ${ed(s,`tasks.${m.k}.s`,m.a+' time',hmsT(t.s))}</span><span>${m.b==='CLOSE'?'Close':m.b==='STOP'?'Stop':m.b==='END'?'End':'Finish'}: ${ed(s,`tasks.${m.k}.e`,m.b+' time',hmsT(t.e))}</span></div><div class="text-right text-blue-600 font-semibold">Total Duration: ${dms(i.dur)}</div></div>`;
+  }else body+=`<div class="mt-3 flex items-center justify-between gap-2"><div class="text-xs text-gray-500">Tap ${m.a} to record the time</div>${bA}</div>`;
+  return `<div class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 mb-4 ${SC[i.st]}"><div class="flex items-start justify-between"><div class="flex items-center gap-2"><div class="w-6 h-6 ${NC[i.st]} rounded-md flex items-center justify-center font-bold text-xs">${m.n}</div><div><h3 class="font-semibold text-primary">${m.t}</h3><p class="text-xs text-gray-500">${m.d}</p></div></div><div class="flex flex-col items-end gap-1">${badge(i.st)}${i.done?'<span class="material-symbols-outlined text-green-500 text-xl">check_circle</span>':''}</div></div>${body}</div>`;
+}
+function engCard(s){
+  const i=tinfo(s,'engine'),e=i.e,id=`data-s="${s.id}"`;
+  const cell=(f,lbl,ic,on,ms)=>ms?`<div class="min-h-[48px] bg-green-100 border border-green-200 rounded-lg p-2 text-center"><div class="text-xs text-green-600">${lbl}</div><div class="font-semibold text-primary">${ed(s,'tasks.engine.'+f,lbl,hmsT(ms))}</div></div>`:`<button data-a="eng" ${id} data-f="${f}" class="min-h-[48px] ${on?'border-2 border-blue-500 text-blue-500 hover:bg-blue-50':'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300'} font-semibold rounded-lg tap-active transition-colors flex items-center justify-center gap-1.5"><span class="material-symbols-outlined">${ic}</span>${lbl}</button>`;
+  return `<div class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 mb-4 ${SC[i.st]}"><div class="flex items-center justify-between"><div class="flex items-center gap-2"><div class="w-6 h-6 ${NC[i.st]} rounded-md flex items-center justify-center font-bold text-xs">10</div><div><h3 class="font-semibold text-primary">Engine</h3><p class="text-xs text-gray-500">Event times only – no timer</p></div></div>${badge(i.st,i.st==='n'?'STANDBY':i.st==='p'?'IN PROGRESS':'COMPLETED')}</div><div class="mt-3 grid grid-cols-2 gap-2">${cell('s','START','power_settings_new',true,e.s)}${cell('r','RUNNING','schedule',false,e.r)}</div></div>`;
+}
+function cmpList(){
+  const q=Q.cmp,k=q.s.toLowerCase();
+  const l=S.sessions.filter(x=>x.status==='completed').map(x=>({s:x,f:fOf(x.fid)})).filter(({f})=>f&&(!q.d||f.date===q.d)&&(!q.f||f.no===q.f)&&(!k||[f.no,f.reg,f.type,f.dest,f.origin].join(' ').toLowerCase().includes(k))).sort((a,b)=>b.s.completedAt-a.s.completedAt);
+  cmpList.cur=l.map(x=>x.s);
+  return l.length?`<div class="md:grid md:grid-cols-2 md:gap-4 space-y-4 md:space-y-0">${l.map(({s,f})=>{const d=delayedTasks(s),td=totDelay(s);return `<div data-a="report" data-s="${s.id}" class="cursor-pointer bg-white rounded-xl p-4 shadow-sm border border-gray-200 ${d.length?SC.x:SC.c}"><div class="flex items-start justify-between"><div><h3 class="font-semibold text-primary text-lg">${esc(f.no)}</h3><p class="text-xs text-gray-500">${esc(f.reg)} • ${esc(f.type)} • DEST ${esc(f.dest)}</p></div>${badge(d.length?'x':'c',d.length?'DELAYED':'ON TIME')}</div><div class="grid grid-cols-4 gap-2 text-center mt-3 text-xs">${[['ETA',hm(s.eta)],['ATA',hm(s.ata)],['ATD',hm(s.atd)],['TAT',dn(s.atd-s.ata)]].map(a=>`<div class="bg-gray-50 rounded-lg p-2 border border-gray-200"><div class="text-gray-500">${a[0]}</div><div class="font-bold text-primary">${a[1]}</div></div>`).join('')}</div><div class="flex justify-between text-xs text-gray-500 mt-2"><span>Delayed tasks: ${d.length} • Delay: ${Math.ceil(td/6e4)} min</span><span>${fdate(ds(new Date(s.completedAt)))}</span></div></div>`}).join('')}</div>`:empty('check_circle','No completed turnarounds');
+}
+function vCmp(){return `<div class="flex items-center justify-between"><h2 class="font-headline font-semibold text-primary text-xl">Completed Flights</h2><div class="flex gap-2"><button data-a="expAll" data-t="pdf" class="px-3 py-2 border-2 border-blue-500 text-blue-600 rounded-lg text-xs font-semibold tap-active">PDF</button><button data-a="expAll" data-t="xls" class="px-3 py-2 border-2 border-green-600 text-green-700 rounded-lg text-xs font-semibold tap-active">EXCEL</button></div></div>`+filters('cmp')+`<div id="list">${cmpList()}</div>`}
+
+/* ================= REPORT / EXPORT ================= */
+function rows(s){
+  const R=[['Aircraft Landed',s.ata,null,'ata',null]];
+  M.forEach(m=>{const t=s.tasks[m.k];if(t&&t.s)R.push([m.t,t.s,t.e,`tasks.${m.k}.s`,`tasks.${m.k}.e`])});
+  const e=s.tasks.engine||{};if(e.r)R.push(['Engine Running (event)',e.r,null,'tasks.engine.r',null]);if(e.s)R.push(['Engine Start (event)',e.s,null,'tasks.engine.s',null]);
+  if(s.atd)R.push(['Take-Off (ATD)',s.atd,null,'atd',null]);
+  return R.filter(r=>r[1]).sort((a,b)=>a[1]-b[1]);
+}
+function repTable(s,edit){
+  const c=(s2,p,v)=>v?(edit?ed(s,p,'time',hmsT(v)):hmsT(v)):'-';
+  return `<table class="w-full text-sm border-collapse"><thead><tr class="bg-gray-100 text-left text-xs text-gray-600"><th class="p-2 border border-gray-200">Activity</th><th class="p-2 border border-gray-200">Start</th><th class="p-2 border border-gray-200">End</th><th class="p-2 border border-gray-200">Duration</th></tr></thead><tbody>${rows(s).map(r=>`<tr><td class="p-2 border border-gray-200">${r[0]}</td><td class="p-2 border border-gray-200">${c(s,r[3],r[1])}</td><td class="p-2 border border-gray-200">${r[2]?c(s,r[4],r[2]):'-'}</td><td class="p-2 border border-gray-200">${r[2]?dn(r[2]-r[1]):'-'}</td></tr>`).join('')}</tbody></table>`;
+}
+function repHead(s){const f=fOf(s.fid),d=delayedTasks(s);return `<div class="grid grid-cols-2 gap-2 text-sm"><div><b>Flight:</b> ${esc(f.no)}</div><div><b>Reg:</b> ${esc(f.reg)}</div><div><b>Type:</b> ${esc(f.type)}</div><div><b>Route:</b> ${esc(f.origin)} → ${esc(f.dest)}</div><div><b>ETA:</b> ${hm(s.eta)}</div><div><b>ATA:</b> ${s.ata?hm(s.ata):'-'}</div><div><b>ATD:</b> ${s.atd?hm(s.atd):'-'}</div><div><b>Total TAT:</b> ${s.atd?dn(s.atd-s.ata):'-'}</div><div><b>Delayed tasks:</b> ${d.length?d.map(m=>m.t).join(', '):'None'}</div><div><b>Total delay:</b> ${Math.ceil(totDelay(s)/6e4)} min</div><div><b>Date:</b> ${fdate(f.date)}</div><div><b>Completed:</b> ${s.completedAt?new Date(s.completedAt).toLocaleString():'-'}</div></div>`}
+function auditHTML(s){return s.audit.length?`<table class="w-full text-xs border-collapse mt-2"><tr class="bg-gray-100"><th class="p-1 border border-gray-200 text-left">When</th><th class="p-1 border border-gray-200 text-left">Field</th><th class="p-1 border border-gray-200 text-left">Change</th><th class="p-1 border border-gray-200 text-left">Reason</th></tr>${s.audit.map(a=>`<tr><td class="p-1 border border-gray-200">${new Date(a.at).toLocaleString()}</td><td class="p-1 border border-gray-200">${esc(a.f)}</td><td class="p-1 border border-gray-200">${hmsT(a.from)} → ${hmsT(a.to)}</td><td class="p-1 border border-gray-200">${esc(a.why)}</td></tr>`).join('')}</table>`:'<div class="text-xs text-gray-500">No corrections recorded.</div>'}
+function showReport(sid){
+  const s=sOf(sid);rep=sid;
+  modal(`<div class="flex items-center justify-between mb-3"><h3 class="font-semibold text-primary text-lg">Turnaround Report</h3><button data-a="close" class="p-1"><span class="material-symbols-outlined">close</span></button></div>${repHead(s)}<div class="font-semibold text-primary mt-4 mb-2">Activity Timeline</div><div class="overflow-x-auto">${repTable(s,true)}</div><div class="text-xs text-gray-400 mt-1">Tap a time to correct it (supervisor PIN required).</div><div class="font-semibold text-primary mt-4">Audit Trail</div>${auditHTML(s)}<div class="grid grid-cols-2 gap-3 mt-4"><button data-a="exp" data-t="pdf" data-s="${s.id}" class="min-h-[48px] border-2 border-blue-500 text-blue-600 font-semibold rounded-lg tap-active">EXPORT PDF</button><button data-a="exp" data-t="xls" data-s="${s.id}" class="min-h-[48px] border-2 border-green-600 text-green-700 font-semibold rounded-lg tap-active">EXPORT EXCEL</button></div>`,true);
+}
+function dl(name,html,mime){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([html],{type:mime}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},600)}
+function printWin(title,body){const w=window.open('','_blank');if(!w){toast('Allow pop-ups to export PDF');return}w.document.write(`<html><head><title>${title}</title><style>body{font-family:Arial,sans-serif;color:#172B4D;padding:20px;font-size:12px}h2{color:#142B4A}table{border-collapse:collapse;width:100%;margin:8px 0}td,th{border:1px solid #ccc;padding:4px 6px;text-align:left}th{background:#eee}.grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}</style></head><body>${body}</body></html>`);w.document.close();w.focus();setTimeout(()=>w.print(),400)}
+const xls=b=>`<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>${b}</body></html>`;
+function listTable(l){
+  const th=['Flight','Reg','Type','Origin','Dest','Date','ETA','ATA','ATD','Turnaround (min)',...M.map(m=>m.t+' (min)'),'Delayed Tasks','Total Delay (min)'];
+  return `<table border="1"><tr>${th.map(x=>`<th>${x}</th>`).join('')}</tr>${l.map(s=>{const f=fOf(s.fid);return `<tr>${[f.no,f.reg,f.type,f.origin,f.dest,f.date,hm(s.eta),hm(s.ata),hm(s.atd),Math.round((s.atd-s.ata)/6e4),...M.map(m=>{const t=s.tasks[m.k];return t&&t.e?Math.round((t.e-t.s)/6e4):''}),delayedTasks(s).map(m=>m.t).join('; '),Math.ceil(totDelay(s)/6e4)].map(x=>`<td>${esc(x)}</td>`).join('')}</tr>`}).join('')}</table>`;
+}
+
+/* ================= ACTIONS ================= */
+const A={
+ nav:d=>{view=d.v;cur=null;closeM();render()},
+ bd:()=>closeM(), close:()=>{closeM();rep=null}, ok:()=>{const f=pend;pend=null;closeM();f&&f()},
+ filt:d=>{tf=d.v;render()},
+ open:d=>{cur=d.s;view='active';closeM();render()},
+ bell:()=>{
+   if('Notification' in window&&Notification.permission==='default')Notification.requestPermission();
+   S.unread=0;save();$('#bdot').classList.add('hidden');
+   modal(`<div class="flex items-center justify-between mb-3"><h3 class="font-semibold text-primary text-lg">Operational Alerts</h3><button data-a="close"><span class="material-symbols-outlined">close</span></button></div>${S.alerts.length?S.alerts.map(a=>`<div class="py-2 border-b border-gray-100 text-sm"><span class="text-xs text-gray-400">${new Date(a.t).toLocaleTimeString()}</span><br>${esc(a.m)}</div>`).join(''):'<div class="text-sm text-gray-500">No alerts yet.</div>'}<div class="text-xs text-gray-400 mt-3">${'Notification' in window?'Native notifications: '+Notification.permission:'Notifications not supported on this device'}</div>`);
+ },
+ detail:d=>{const f=fOf(d.f),x=sessOf(f.id);modal(`<div class="flex items-center justify-between mb-3"><h3 class="font-semibold text-primary text-lg">${esc(f.no)} – Flight Details</h3><button data-a="close"><span class="material-symbols-outlined">close</span></button></div><div class="grid grid-cols-2 gap-2 text-sm">${[['Registration',f.reg],['Aircraft',f.type],['Origin',f.origin],['Destination',f.dest],['STA',f.sta],['STD',f.std],['Date',fdate(f.date)],['Stand',f.stand||'-']].map(a=>`<div><div class="text-xs text-gray-500">${a[0]}</div><div class="font-semibold">${esc(a[1])}</div></div>`).join('')}</div><div class="mt-2 text-sm"><div class="text-xs text-gray-500">Remarks</div>${esc(f.remarks||'-')}</div><div class="mt-4">${!x?`<button data-a="begin" data-f="${f.id}" class="w-full ${BTN}"><span class="material-symbols-outlined">play_arrow</span>START TURNAROUND</button>`:x.status==='active'?`<button data-a="open" data-s="${x.id}" class="w-full ${BTN}">OPEN TURNAROUND</button>`:`<button data-a="report" data-s="${x.id}" class="w-full ${BTN}">VIEW REPORT</button>`}</div>`)},
+ fform:d=>{
+  const f=d.f?fOf(d.f):{no:'',reg:'',type:'',origin:'',dest:'',sta:'',std:'',date:ds(new Date()),stand:'',remarks:''};
+  const fld=(id,l,t,v,ph)=>`<label class="block text-xs text-gray-500">${l}<input id="ff_${id}" type="${t||'text'}" class="${inp} mt-1" value="${esc(v)}" placeholder="${ph||''}"/></label>`;
+  modal(`<div class="flex items-center justify-between mb-3"><h3 class="font-semibold text-primary text-lg">${d.f?'Edit':'Add'} Flight</h3><button data-a="close"><span class="material-symbols-outlined">close</span></button></div><div class="grid grid-cols-2 gap-3">${fld('no','Flight Number','',f.no,'EK658')+fld('reg','Aircraft Registration','',f.reg,'A6-EEO')+fld('type','Aircraft Type','',f.type,'B777-300ER')+fld('stand','Gate / Stand','',f.stand,'C14')+fld('origin','Origin','',f.origin,'DXB')+fld('dest','Destination','',f.dest,'DXB')+fld('sta','STA','time',f.sta)+fld('std','STD','time',f.std)+fld('date','Date','date',f.date)}</div><label class="block text-xs text-gray-500 mt-3">Remarks<textarea id="ff_remarks" rows="2" class="${inp} mt-1">${esc(f.remarks)}</textarea></label><button data-a="saveF" data-f="${d.f||''}" class="w-full mt-4 ${BTN}">SAVE FLIGHT</button>`);
+ },
+ saveF:d=>{
+  const g=k=>$('#ff_'+k).value.trim();const o={no:g('no').toUpperCase(),reg:g('reg').toUpperCase(),type:g('type'),origin:g('origin').toUpperCase(),dest:g('dest').toUpperCase(),sta:g('sta'),std:g('std'),date:g('date'),stand:g('stand'),remarks:g('remarks')};
+  if(!o.no||!o.reg||!o.type||!o.dest||!o.sta||!o.std||!o.date){toast('Fill all required fields');return}
+  if(d.f){Object.assign(fOf(d.f),o);const x=sessOf(d.f);if(x&&x.status==='active'&&!x.ata){x.eta=toMs(o.date,o.sta);x.etd=etdMs(o)}}else S.flights.push({id:'f'+Date.now(),...o});
+  save();closeM();render();toast('Flight saved');
+ },
+ delf:d=>{const f=fOf(d.f);if(sessOf(f.id)){toast('Flights with turnaround records cannot be deleted');return}ask('Delete flight?',`Delete ${esc(f.no)} (${fdate(f.date)})?`,'DELETE',()=>{S.flights=S.flights.filter(x=>x.id!==f.id);save();render()})},
+ begin:d=>{
+  const f=fOf(d.f),x=sessOf(f.id);
+  if(x){if(x.status==='active'){cur=x.id;view='active';closeM();render();toast('Turnaround already active')}else toast('Turnaround already completed');return}
+  const s={id:'s'+Date.now(),fid:f.id,startedAt:Date.now(),eta:toMs(f.date,f.sta),etd:etdMs(f),ata:null,atd:null,status:'active',tasks:{},al:{},audit:[]};
+  S.sessions.push(s);save();cur=s.id;view='active';tf='all';closeM();render();
+ },
+ landed:d=>{const s=sOf(d.s);if(s.ata)return;s.ata=Date.now();save();render()},
+ ts:d=>{const s=sOf(d.s),t=s.tasks[d.k]=s.tasks[d.k]||{};if(t.s)return;t.s=Date.now();save();render()},
+ te:d=>{const s=sOf(d.s),t=s.tasks[d.k];if(!t||!t.s||t.e)return;t.e=Date.now();save();render()},
+ eng:d=>{const s=sOf(d.s),e=s.tasks.engine=s.tasks.engine||{};if(e[d.f])return;e[d.f]=Date.now();save();render()},
+ takeoff:d=>{
+  const s=sOf(d.s);if(!s.ata||s.atd)return;
+  const miss=[...M.filter(m=>!tinfo(s,m.k).done).map(m=>m.t),...(tinfo(s,'engine').done?[]:['Engine (RUNNING + START)'])];
+  if(miss.length){modal(`<h3 class="font-semibold text-red-600 text-lg">Cannot record take-off</h3><div class="text-sm text-gray-600 mt-2">Complete these tasks first:</div><ul class="list-disc ml-5 mt-2 text-sm">${miss.map(x=>`<li>${x}</li>`).join('')}</ul><button data-a="close" class="w-full mt-4 ${BTN}">OK</button>`);return}
+  ask('Confirm take-off','All tasks are complete. Record take-off now and close this turnaround?','CONFIRM TAKE-OFF',()=>{
+    if(s.atd)return;s.atd=Date.now();s.status='completed';s.completedAt=s.atd;save();cur=null;view='completed';render();showReport(s.id);
+  });
+ },
+ report:d=>showReport(d.s),
+ edt:d=>{
+  const s=sOf(d.s),v=getP(s,d.p);if(!v)return;
+  modal(`<h3 class="font-semibold text-primary text-lg">Correct ${esc(d.l)}</h3><div class="text-xs text-gray-500 mb-3">Current: ${hmsT(v)}. A supervisor PIN and reason are required; the change is saved to the audit trail.</div><label class="block text-xs text-gray-500">New time<input id="e_t" type="time" step="1" class="${inp} mt-1" value="${hmsT(v)}"/></label><label class="block text-xs text-gray-500 mt-3">Reason<input id="e_r" class="${inp} mt-1" placeholder="Reason for correction"/></label><label class="block text-xs text-gray-500 mt-3">Supervisor PIN<input id="e_p" type="password" inputmode="numeric" class="${inp} mt-1"/></label><div class="grid grid-cols-2 gap-3 mt-4"><button data-a="${rep?'rep2':'close'}" class="min-h-[48px] border-2 border-gray-300 text-gray-600 font-semibold rounded-lg tap-active">CANCEL</button><button data-a="edtSave" data-s="${s.id}" data-p="${d.p}" data-l="${esc(d.l)}" class="${BTN}">SAVE</button></div>`);
+ },
+ rep2:()=>showReport(rep),
+ edtSave:d=>{
+  const s=sOf(d.s),old=getP(s,d.p),v=$('#e_t').value,why=$('#e_r').value.trim();
+  if($('#e_p').value!==PIN){toast('Invalid supervisor PIN');return}
+  if(!why){toast('Reason required');return}
+  if(!v){toast('Enter a time');return}
+  const p=v.split(':'),n=new Date(old);n.setHours(+p[0],+p[1],+(p[2]||0),0);const nv=n.getTime();
+  const m=d.p.match(/^tasks\.(\w+)\.([se])$/);
+  if(m&&['chocks','door','gpu','bagun','disem','bagload','clean','embark'].includes(m[1])){const t=s.tasks[m[1]];if(m[2]==='s'&&t.e&&nv>t.e||m[2]==='e'&&nv<t.s){toast('Start must be before end');return}}
+  if(d.p==='ata'&&s.atd&&nv>s.atd||d.p==='atd'&&nv<s.ata){toast('ATA must be before ATD');return}
+  s.audit.push({at:Date.now(),who:'Supervisor',f:d.l,from:old,to:nv,why});setP(s,d.p,nv);
+  if(s.atd&&['ata','atd'].includes(d.p)){}
+  save();closeM();render();toast('Correction saved');if(rep)showReport(rep);
+ },
+ exp:d=>{const s=sOf(d.s),f=fOf(s.fid),nm=`${f.no}_${f.date}`;
+  if(d.t==='pdf')printWin(nm,`<h2>Turnaround Report – ${esc(f.no)}</h2>${repHead(s)}<h3>Activity Timeline</h3>${repTable(s,false)}<h3>Audit Trail</h3>${auditHTML(s)}`);
+  else dl(`Turnaround_${nm}.xls`,xls(`<h3>Turnaround Report – ${esc(f.no)}</h3>${repHead(s)}<br>${repTable(s,false)}<br><b>Audit Trail</b>${auditHTML(s)}`),'application/vnd.ms-excel');
+ },
+ expAll:d=>{const l=cmpList.cur||[];if(!l.length){toast('Nothing to export');return}
+  if(d.t==='pdf')printWin('Completed Turnarounds',`<h2>Completed Turnarounds</h2>${listTable(l)}`);else dl('Completed_Turnarounds.xls',xls(listTable(l)),'application/vnd.ms-excel');
+ }
+};
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;
+  if(b.dataset.a==='bd'&&e.target!==b)return;
+  const now=Date.now();if(now-lastTap<300&&['ts','te','eng','landed','takeoff','begin'].includes(b.dataset.a))return; // prevent accidental double taps
+  lastTap=now;A[b.dataset.a]&&A[b.dataset.a](b.dataset);
+});
+document.addEventListener('input',e=>{const t=e.target,o=t.dataset.in;if(!o)return;Q[o][t.dataset.f]=t.value;$('#list').innerHTML=o==='sch'?schList():cmpList()});
+document.addEventListener('change',e=>{const t=e.target,o=t.dataset.in;if(!o)return;Q[o][t.dataset.f]=t.value;$('#list').innerHTML=o==='sch'?schList():cmpList()});
+
+/* ================= LIVE TIMERS (computed from stored timestamps) ================= */
+function lv(k){
+  const p=k.split(':'),s=sOf(p[1]);
+  switch(p[0]){
+    case 'total':return s?clock(elapsed(s)):'';
+    case 'plan':return s?`${Math.floor(elapsed(s)/6e4)}m of ${plan(s)}m`:'';
+    case 'hst':{if(!s)return '';const dl=delayedTasks(s).length||(s.ata&&elapsed(s)>plan(s)*6e4);
+      return s.atd?'<span class="w-1.5 h-1.5 rounded-full bg-green-400"></span><span class="text-green-400">COMPLETED</span>':!s.ata?'<span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span><span class="text-yellow-300">AWAITING TOUCHDOWN</span>':dl?'<span class="w-1.5 h-1.5 rounded-full bg-red-400"></span><span class="text-red-300">ACTIVE - DELAYED</span>':'<span class="w-1.5 h-1.5 rounded-full bg-green-400"></span><span class="text-green-400">ACTIVE - ON SCHEDULE</span>'}
+    case 'chk':return s?chkLive(s):'';
+    case 'rt':{const t=s&&s.tasks[p[2]];return t&&t.s?clock((t.e||Date.now())-t.s):'00:00:00'}
+    case 'cd':{const f=fOf(p[1]);if(!f)return '';const d=toMs(f.date,f.sta)-Date.now();return d>0?`<span class="text-blue-600">ETA in ${clock(d)}</span>`:`<span class="text-orange-500">ETA passed ${dn(-d)} ago</span>`}
+  }return '';
+}
+function checks(){
+  S.sessions.filter(x=>x.status==='active').forEach(s=>{
+    const f=fOf(s.fid),i=tinfo(s,'chocks');s.al=s.al||{};let ch=0;
+    if(i.run&&i.dur>=25*6e4&&!s.al.w){s.al.w=1;ch=1;alertOp(`${f.no}: Chocks at 25 min – 5 min remaining`)}
+    if(i.run&&i.delay>0&&!s.al.x){s.al.x=1;ch=1;alertOp(`${f.no}: Chocks DELAYED – exceeded 30 min`);render()}
+    if(s.ata&&!s.atd&&elapsed(s)>plan(s)*6e4&&!s.al.p){s.al.p=1;alertOp(`${f.no}: Turnaround exceeded planned ${plan(s)} min`)}
+    if(ch)save();
+  });
+  S.flights.forEach(f=>{if(sessOf(f.id))return;const d=toMs(f.date,f.sta)-Date.now(),k=f.id+'e';if(d>0&&d<15*6e4&&!S.fl[k]){S.fl[k]=1;alertOp(`${f.no} arriving in ${Math.ceil(d/6e4)} min – ready turnaround team`)}});
+}
+function tick(){checks();document.querySelectorAll('[data-lv]').forEach(e=>{const h=lv(e.dataset.lv);if(e.innerHTML!==h)e.innerHTML=h})}
+function render(){renderNav();$('#main').innerHTML=({dashboard:vDash,schedule:vSch,upcoming:vUp,active:vAct,completed:vCmp})[view]();tick();window.scrollTo(0,0)}
+
+/* ================= NETWORK / MULTI-TAB ================= */
+function net(){const on=navigator.onLine;$('#net').textContent=on?'LIVE RAMP':'OFFLINE – LOCAL';$('#netd').className='w-1.5 h-1.5 rounded-full '+(on?'bg-green-500 animate-pulse':'bg-orange-500')}
+addEventListener('online',()=>{net();sync();toast('Back online – synced')});addEventListener('offline',()=>{net();toast('Offline – data saved locally')});
+addEventListener('storage',e=>{if(e.key===KEY){S=load();if(!$('#modal').innerHTML)render()}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick()});
+net();render();if(S.unread)$('#bdot').classList.remove('hidden');
+setInterval(tick,1000);setInterval(sync,30000);
+</script>
+
+</body>
+</html>
